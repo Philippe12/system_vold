@@ -17,7 +17,11 @@ common_src_files := \
 	Xwarp.cpp \
 	VoldUtil.c \
 	fstrim.c \
-	cryptfs.c
+	cryptfs.c \
+	Exfat.cpp \
+	Ntfs.cpp\
+    iso9660.cpp \
+	Tmpfs.cpp
 
 common_c_includes := \
 	$(KERNEL_HEADERS) \

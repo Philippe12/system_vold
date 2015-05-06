@@ -43,7 +43,67 @@
 #include "Ext4.h"
 #include "VoldUtil.h"
 
-#define MKEXT4FS_PATH "/system/bin/make_ext4fs";
+static char MKEXT4FS_PATH[] = "/system/bin/make_ext4fs";
+static char  FSCK_EXT4_PATH[] = "/system/bin/e2fsck";
+
+int Ext4::check(const char *fsPath)
+{
+    int status;
+	SLOGI("Ext4::check");
+
+	if (access(FSCK_EXT4_PATH, X_OK)) {
+        SLOGW("Skipping fs checks\n");
+        return 0;
+    }
+
+    int rc = 0;
+
+    const char *args[6];
+    args[0] = FSCK_EXT4_PATH;
+	args[1] = "-p";
+	args[2] = "-v";
+    args[3] = fsPath;
+    args[4] = NULL;
+
+    rc = android_fork_execvp(ARRAY_SIZE(args), (char **)args, &status, false,
+            true);
+	if( rc != 0 )
+	{
+		SLOGE("Filesystem check failed (unknown exit code %d)", rc);
+        errno = EIO;
+        return -1;
+    }
+
+    if (!WIFEXITED(status)) {
+        SLOGE("Filesystem (ext4) check did not exit properly");
+        errno = EIO;
+        return -1;
+    }
+
+    if ((status == 0) || (status == 256) || (status == 1024)) {
+        SLOGI("Filesystem (ext4) checked OK");
+        return 0;
+    } else {
+        SLOGE("Check (ext4) failed (unknown exit code %d)", status);
+        errno = EIO;
+        return -1;
+    }
+
+	return rc;
+}
+
+int Ext4::doMount(const char *fsPath, const char *mountPoint,
+                 bool ro, bool remount, bool executable,
+                 int ownerUid, int ownerGid, int permMask, bool createLost)
+{
+	int rc = Ext4::doMount(fsPath, mountPoint, ro, remount, executable);
+	if( rc == 0 ) {
+		chmod(mountPoint, (~permMask)&0777);
+		chown(mountPoint, ownerUid, ownerGid );
+	}
+	
+	return rc;
+}
 
 int Ext4::doMount(const char *fsPath, const char *mountPoint, bool ro, bool remount,
         bool executable) {
